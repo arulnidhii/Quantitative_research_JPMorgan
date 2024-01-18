@@ -1,0 +1,98 @@
+import pandas as pd
+
+# Load the data from the CSV file
+file_path = 'xx/xx/xx/xx/xxx.csv'
+nat_gas_data = pd.read_csv(file_path)
+
+# Display the first few rows of the dataset
+nat_gas_data.head()
+
+# Convert the 'Dates' column to datetime format
+nat_gas_data['Dates'] = pd.to_datetime(nat_gas_data['Dates'], format='%m/%d/%y')
+
+# Setting the 'Dates' column as the index
+nat_gas_data.set_index('Dates', inplace=True)
+
+# Check for missing values
+missing_values = nat_gas_data.isnull().sum()
+
+# Display the prepared data
+nat_gas_data.head(), missing_values
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Setting the style for the plots
+sns.set(style="whitegrid")
+
+# Plotting the time series
+plt.figure(figsize=(15, 6))
+plt.plot(nat_gas_data.index, nat_gas_data['Prices'], marker='o')
+plt.title('Natural Gas Prices Over Time')
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.show()
+
+# Extracting year and month from the index (date)
+nat_gas_data['Year'] = nat_gas_data.index.year
+nat_gas_data['Month'] = nat_gas_data.index.month
+
+# Plotting prices for each year
+plt.figure(figsize=(15, 8))
+sns.lineplot(x='Month', y='Prices', hue='Year', data=nat_gas_data, marker='o')
+plt.title('Monthly Natural Gas Prices by Year')
+plt.xlabel('Month')
+plt.ylabel('Price')
+plt.legend(title='Year', bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.show()
+
+from prophet import Prophet
+
+# Preparing the data for Prophet
+# Prophet requires the data to be in a DataFrame with two columns named 'ds' and 'y'
+prophet_data = nat_gas_data.reset_index().rename(columns={'Dates': 'ds', 'Prices': 'y'})
+
+# Initialize the Prophet model
+model = Prophet(yearly_seasonality=True, daily_seasonality=False, weekly_seasonality=False)
+
+# Fit the model
+model.fit(prophet_data)
+
+# Create a DataFrame for future dates to forecast
+future = model.make_future_dataframe(periods=12, freq='M')
+
+# Forecast future prices
+forecast = model.predict(future)
+
+# Focusing on the forecasted prices and dates
+forecasted_data = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
+
+forecasted_data
+
+from prophet.plot import plot_plotly, plot_components_plotly
+
+# Plot the forecast
+plot_plotly(model, forecast)
+
+# Plot the forecast components
+plot_components_plotly(model, forecast)
+
+def estimate_price(date):
+    # Converting the input date to datetime format
+    date = pd.to_datetime(date)
+
+    # Finding the forecasted price for the given date
+    estimated_price = forecast[forecast['ds'] == date]['yhat'].values
+
+    # Returning the estimated price if available
+    if len(estimated_price) > 0:
+        return estimated_price[0]
+    else:
+        return "No forecast available for this date"
+
+# Example usage of the function
+example_date = '2024-10-31'
+estimated_price = estimate_price(example_date)
+print(f"Estimated Price on {example_date}: {estimated_price}")
+
+OUTPUT :Estimated Price on 2024-10-31: 11.960253350233003
